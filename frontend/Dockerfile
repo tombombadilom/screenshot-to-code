@@ -1,4 +1,4 @@
-FROM node:20.9-bullseye-slim
+FROM current-bookworm-slim
 
 # Set the working directory in the container
 WORKDIR /app
@@ -10,7 +10,7 @@ COPY package.json yarn.lock /app/
 RUN yarn install
 
 # Copy the current directory contents into the container at /app
-COPY ./ /app/
+COPY --from=dist dist/ /app/
 
 # Expose port 5173 to access the server
 EXPOSE 5173
