@@ -1,5 +1,25 @@
-# screenshot-to-code
 
+This project is a quiet simple fork from [abi/screenshot-to-code](https://github.com/abi/screenshot-to-code)
+
+- Frontend: 
+    - use node v 20.x 
+    - use vite v 5.x
+    - use pnpm or yarn
+    - use tailwind css v 3.4
+    - use tailwind-merge v 2.2
+    - use react v 18.x
+    - use react-router v 6.x
+    - typescript v 5.3.3
+    - use vitest v 1.1.1
+    - DockerFile updated from bullseyes to bookworm
+- Backend:
+    - Dockerfile updated from bullseyes to bookworm 
+    - poetry updated to v 1.7.1
+
+The fonctionality keep the same , as I will git stream from the source projet reguliarly.
+
+---
+# screenshot-to-code
 This simple app converts a screenshot to code (HTML/Tailwind CSS, or React or Vue or Bootstrap). It uses GPT-4 Vision to generate the code and DALL-E 3 to generate similar-looking images. You can now also enter a URL to clone a live website!
 
 https://github.com/abi/screenshot-to-code/assets/23818/6cebadae-2fe3-4986-ac6a-8fb9db030045
