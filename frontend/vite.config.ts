@@ -22,6 +22,16 @@ export default ({ mode }) => {
         },
       }),
     ],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+           // "index-5eLFN5Pl": ["dist/assets/index-5eLFN5Pl.js"]
+          },
+        },
+      },
+      chunkSizeWarningLimit: 100000,
+    },
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
