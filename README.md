@@ -68,8 +68,6 @@ poetry shell
 poetry run uvicorn main:app --reload --port 7001
 ```
 
-If you want to use Anthropic, add the `ANTHROPIC_API_KEY` to `backend/.env` with your API key from Anthropic.
-
 Run the frontend:
 
 ```bash
