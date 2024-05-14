@@ -39,7 +39,7 @@ import { CodeGenerationModel } from "./lib/models";
 import ModelSettingsSection from "./components/ModelSettingsSection";
 import { extractHtml } from "./components/preview/extractHtml";
 import useBrowserTabIndicator from "./hooks/useBrowserTabIndicator";
-import { URLS } from "./urls";
+import TipLink from "./components/core/TipLink";
 
 const IS_OPENAI_DOWN = false;
 
@@ -63,10 +63,9 @@ function App() {
       isImageGenerationEnabled: true,
       editorTheme: EditorTheme.COBALT,
       generatedCodeConfig: Stack.HTML_TAILWIND,
-      codeGenerationModel: CodeGenerationModel.GPT_4_VISION,
+      codeGenerationModel: CodeGenerationModel.GPT_4O_2024_05_13,
       // Only relevant for hosted version
       isTermOfServiceAccepted: false,
-      accessCode: null,
     },
     "setting"
   );
@@ -84,6 +83,11 @@ function App() {
     useState<boolean>(false);
 
   const wsRef = useRef<WebSocket>(null);
+
+  const showReactWarning =
+    selectedCodeGenerationModel ===
+      CodeGenerationModel.GPT_4_TURBO_2024_04_09 &&
+    settings.generatedCodeConfig === Stack.REACT_TAILWIND;
 
   // Indicate coding state using the browser tab's favicon and title
   useBrowserTabIndicator(appState === AppState.CODING);
@@ -140,6 +144,25 @@ function App() {
     setAppHistory([]);
     setCurrentVersion(null);
     setShouldIncludeResultImage(false);
+  };
+
+  const regenerate = () => {
+    if (currentVersion === null) {
+      toast.error(
+        "No current version set. Please open a Github issue as this shouldn't happen."
+      );
+      return;
+    }
+
+    // Retrieve the previous command
+    const previousCommand = appHistory[currentVersion];
+    if (previousCommand.type !== "ai_create") {
+      toast.error("Only the first version can be regenerated.");
+      return;
+    }
+
+    // Re-run the create
+    doCreate(referenceImages, inputMode);
   };
 
   const cancelCodeGeneration = () => {
@@ -343,7 +366,7 @@ function App() {
 
   return (
     <div className="mt-2 dark:bg-black dark:text-white">
-      {IS_RUNNING_ON_CLOUD && <PicoBadge settings={settings} />}
+      {IS_RUNNING_ON_CLOUD && <PicoBadge />}
       {IS_RUNNING_ON_CLOUD && (
         <TermsOfServiceDialog
           open={!settings.isTermOfServiceAccepted}
@@ -373,19 +396,16 @@ function App() {
             }
           />
 
-          <a
-            className="text-xs underline text-gray-500 text-right"
-            href={URLS.tips}
-            target="_blank"
-            rel="noopener"
-          >
-            Tips for better results
-          </a>
+          {showReactWarning && (
+            <div className="text-sm bg-yellow-200 rounded p-2">
+              Sorry - React is not currently working with GPT-4 Turbo. Please
+              use GPT-4 Vision or Claude Sonnet. We are working on a fix.
+            </div>
+          )}
 
-          {IS_RUNNING_ON_CLOUD &&
-            !(settings.openAiApiKey || settings.accessCode) && (
-              <OnboardingNote />
-            )}
+          {appState !== AppState.CODE_READY && <TipLink />}
+
+          {IS_RUNNING_ON_CLOUD && !settings.openAiApiKey && <OnboardingNote />}
 
           {IS_OPENAI_DOWN && (
             <div className="bg-black text-white dark:bg-white dark:text-black p-3 rounded">
@@ -454,20 +474,16 @@ function App() {
                       Update
                     </Button>
                   </div>
-                  <div className="flex items-center gap-x-2 mt-2">
+                  <div className="flex items-center justify-end gap-x-2 mt-2">
                     <Button
-                      onClick={downloadCode}
+                      onClick={regenerate}
                       className="flex items-center gap-x-2 dark:text-white dark:bg-gray-700"
                     >
-                      <FaDownload /> Download
+                      🔄 Regenerate
                     </Button>
-                    <Button
-                      onClick={reset}
-                      className="flex items-center gap-x-2 dark:text-white dark:bg-gray-700"
-                    >
-                      <FaUndo />
-                      Reset
-                    </Button>
+                  </div>
+                  <div className="flex justify-end items-center mt-2">
+                    <TipLink />
                   </div>
                 </div>
               )}
@@ -556,19 +572,41 @@ function App() {
         {(appState === AppState.CODING || appState === AppState.CODE_READY) && (
           <div className="ml-4">
             <Tabs defaultValue="desktop">
-              <div className="flex justify-end mr-8 mb-4">
-                <TabsList>
-                  <TabsTrigger value="desktop" className="flex gap-x-2">
-                    <FaDesktop /> Desktop
-                  </TabsTrigger>
-                  <TabsTrigger value="mobile" className="flex gap-x-2">
-                    <FaMobile /> Mobile
-                  </TabsTrigger>
-                  <TabsTrigger value="code" className="flex gap-x-2">
-                    <FaCode />
-                    Code
-                  </TabsTrigger>
-                </TabsList>
+              <div className="flex justify-between mr-8 mb-4">
+                <div className="flex items-center gap-x-2">
+                  {appState === AppState.CODE_READY && (
+                    <>
+                      <Button
+                        onClick={reset}
+                        className="flex items-center ml-4 gap-x-2 dark:text-white dark:bg-gray-700"
+                      >
+                        <FaUndo />
+                        Reset
+                      </Button>
+                      <Button
+                        onClick={downloadCode}
+                        variant="secondary"
+                        className="flex items-center gap-x-2 mr-4 dark:text-white dark:bg-gray-700"
+                      >
+                        <FaDownload /> Download
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center">
+                  <TabsList>
+                    <TabsTrigger value="desktop" className="flex gap-x-2">
+                      <FaDesktop /> Desktop
+                    </TabsTrigger>
+                    <TabsTrigger value="mobile" className="flex gap-x-2">
+                      <FaMobile /> Mobile
+                    </TabsTrigger>
+                    <TabsTrigger value="code" className="flex gap-x-2">
+                      <FaCode />
+                      Code
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
               </div>
               <TabsContent value="desktop">
                 <Preview code={previewCode} device="desktop" />

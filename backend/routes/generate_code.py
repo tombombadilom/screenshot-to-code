@@ -5,8 +5,8 @@ import openai
 from config import ANTHROPIC_API_KEY, IS_PROD, SHOULD_MOCK_AI_RESPONSE
 from custom_types import InputMode
 from llm import (
-    CODE_GENERATION_MODELS,
     Llm,
+    convert_frontend_str_to_llm,
     stream_claude_response,
     stream_claude_response_native,
     stream_openai_response,
@@ -16,14 +16,14 @@ from mock_llm import mock_completion
 from typing import Dict, List, cast, get_args
 from image_generation import create_alt_url_mapping, generate_images
 from prompts import assemble_imported_code_prompt, assemble_prompt
-from access_token import validate_access_token
 from datetime import datetime
 import json
 from prompts.claude_prompts import VIDEO_PROMPT
 from prompts.types import Stack
 
 # from utils import pprint_prompt
-from video.utils import extract_tag_content, assemble_claude_prompt_video  # type: ignore
+from video.utils import extract_tag_content, assemble_claude_prompt_video
+from ws.constants import APP_ERROR_WEB_SOCKET_CODE  # type: ignore
 
 
 router = APIRouter()
@@ -58,7 +58,7 @@ async def stream_code(websocket: WebSocket):
         message: str,
     ):
         await websocket.send_json({"type": "error", "value": message})
-        await websocket.close()
+        await websocket.close(APP_ERROR_WEB_SOCKET_CODE)
 
     # TODO: Are the values always strings?
     params: Dict[str, str] = await websocket.receive_json()
@@ -84,10 +84,14 @@ async def stream_code(websocket: WebSocket):
     validated_input_mode = cast(InputMode, input_mode)
 
     # Read the model from the request. Fall back to default if not provided.
-    code_generation_model = params.get("codeGenerationModel", "gpt_4_vision")
-    if code_generation_model not in CODE_GENERATION_MODELS:
-        await throw_error(f"Invalid model: {code_generation_model}")
-        raise Exception(f"Invalid model: {code_generation_model}")
+    code_generation_model_str = params.get(
+        "codeGenerationModel", Llm.GPT_4O_2024_05_13.value
+    )
+    try:
+        code_generation_model = convert_frontend_str_to_llm(code_generation_model_str)
+    except:
+        await throw_error(f"Invalid model: {code_generation_model_str}")
+        raise Exception(f"Invalid model: {code_generation_model_str}")
     exact_llm_version = None
 
     print(
@@ -97,35 +101,22 @@ async def stream_code(websocket: WebSocket):
     # Get the OpenAI API key from the request. Fall back to environment variable if not provided.
     # If neither is provided, we throw an error.
     openai_api_key = None
-    if "accessCode" in params and params["accessCode"]:
-        print("Access code - using platform API key")
-        res = await validate_access_token(params["accessCode"])
-        if res["success"]:
-            openai_api_key = os.environ.get("PLATFORM_OPENAI_API_KEY")
-        else:
-            await websocket.send_json(
-                {
-                    "type": "error",
-                    "value": res["failure_reason"],
-                }
-            )
-            return
+    if params["openAiApiKey"]:
+        openai_api_key = params["openAiApiKey"]
+        print("Using OpenAI API key from client-side settings dialog")
     else:
-        if params["openAiApiKey"]:
-            openai_api_key = params["openAiApiKey"]
-            print("Using OpenAI API key from client-side settings dialog")
-        else:
-            openai_api_key = os.environ.get("OPENAI_API_KEY")
-            if openai_api_key:
-                print("Using OpenAI API key from environment variable")
+        openai_api_key = os.environ.get("OPENAI_API_KEY")
+        if openai_api_key:
+            print("Using OpenAI API key from environment variable")
 
-    if not openai_api_key and code_generation_model == "gpt_4_vision":
+    if not openai_api_key and (
+        code_generation_model == Llm.GPT_4_VISION
+        or code_generation_model == Llm.GPT_4_TURBO_2024_04_09
+        or code_generation_model == Llm.GPT_4O_2024_05_13
+    ):
         print("OpenAI API key not found")
-        await websocket.send_json(
-            {
-                "type": "error",
-                "value": "No OpenAI API key found. Please add your API key in the settings dialog or add it to backend/.env file. If you add it to .env, make sure to restart the backend server.",
-            }
+        await throw_error(
+            "No OpenAI API key found. Please add your API key in the settings dialog or add it to backend/.env file. If you add it to .env, make sure to restart the backend server."
         )
         return
 
@@ -243,7 +234,7 @@ async def stream_code(websocket: WebSocket):
                     include_thinking=True,
                 )
                 exact_llm_version = Llm.CLAUDE_3_OPUS
-            elif code_generation_model == "claude_3_sonnet":
+            elif code_generation_model == Llm.CLAUDE_3_SONNET:
                 if not ANTHROPIC_API_KEY:
                     await throw_error(
                         "No Anthropic API key found. Please add the environment variable ANTHROPIC_API_KEY to backend/.env"
@@ -255,15 +246,16 @@ async def stream_code(websocket: WebSocket):
                     api_key=ANTHROPIC_API_KEY,
                     callback=lambda x: process_chunk(x),
                 )
-                exact_llm_version = Llm.CLAUDE_3_SONNET
+                exact_llm_version = code_generation_model
             else:
                 completion = await stream_openai_response(
                     prompt_messages,  # type: ignore
                     api_key=openai_api_key,
                     base_url=openai_base_url,
                     callback=lambda x: process_chunk(x),
+                    model=code_generation_model,
                 )
-                exact_llm_version = Llm.GPT_4_VISION
+                exact_llm_version = code_generation_model
         except openai.AuthenticationError as e:
             print("[GENERATE_CODE] Authentication failed", e)
             error_message = (
