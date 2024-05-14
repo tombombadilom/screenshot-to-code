@@ -2,15 +2,15 @@
 This project is a quiet simple fork from [abi/screenshot-to-code](https://github.com/abi/screenshot-to-code)
 
 - Frontend: 
-    - use node v 20.x 
+    - use node v 22.x 
     - use vite v 5.x
     - use pnpm or yarn
-    - use tailwind css v 3.4
-    - use tailwind-merge v 2.2
+    - use tailwind css v 3.4.x
+    - use tailwind-merge v 2.3.0
     - use react v 18.x
     - use react-router v 6.x
-    - typescript v 5.3.3
-    - use vitest v 1.1.1
+    - typescript v 5.4.5
+    - use vitest v 1.6.x
     - DockerFile updated from bullseyes to bookworm
 - Backend:
     - Dockerfile updated from bullseyes to bookworm 
