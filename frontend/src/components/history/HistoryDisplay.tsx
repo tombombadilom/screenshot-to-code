@@ -1,4 +1,3 @@
-import { History } from "./history_types";
 import toast from "react-hot-toast";
 import classNames from "classnames";
 
@@ -11,21 +10,23 @@ import {
 } from "../ui/collapsible";
 import { Button } from "../ui/button";
 import { CaretSortIcon } from "@radix-ui/react-icons";
+import { useProjectStore } from "../../store/project-store";
 
 interface Props {
-  history: History;
-  currentVersion: number | null;
-  revertToVersion: (version: number) => void;
   shouldDisableReverts: boolean;
 }
 
-export default function HistoryDisplay({
-  history,
-  currentVersion,
-  revertToVersion,
-  shouldDisableReverts,
-}: Props) {
-  const renderedHistory = renderHistory(history, currentVersion);
+export default function HistoryDisplay({ shouldDisableReverts }: Props) {
+  const { commits, head, setHead } = useProjectStore();
+
+  // Put all commits into an array and sort by created date (oldest first)
+  const flatHistory = Object.values(commits).sort(
+    (a, b) =>
+      new Date(a.dateCreated).getTime() - new Date(b.dateCreated).getTime()
+  );
+
+  // Annotate history items with a summary, parent version, etc.
+  const renderedHistory = renderHistory(flatHistory);
 
   return renderedHistory.length === 0 ? null : (
     <div className="flex flex-col h-screen">
@@ -39,8 +40,8 @@ export default function HistoryDisplay({
                   "flex items-center justify-between space-x-2 w-full pr-2",
                   "border-b cursor-pointer",
                   {
-                    " hover:bg-black hover:text-white": !item.isActive,
-                    "bg-slate-500 text-white": item.isActive,
+                    " hover:bg-black hover:text-white": item.hash === head,
+                    "bg-slate-500 text-white": item.hash === head,
                   }
                 )}
               >
@@ -51,14 +52,14 @@ export default function HistoryDisplay({
                       ? toast.error(
                           "Please wait for code generation to complete before viewing an older version."
                         )
-                      : revertToVersion(index)
+                      : setHead(item.hash)
                   }
                 >
                   <div className="flex gap-x-1 truncate">
                     <h2 className="text-sm truncate">{item.summary}</h2>
                     {item.parentVersion !== null && (
                       <h2 className="text-sm">
-                        (parent: {item.parentVersion})
+                        (parent: v{item.parentVersion})
                       </h2>
                     )}
                   </div>

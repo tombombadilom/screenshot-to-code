@@ -48,3 +48,4 @@ container_id=$(sudo docker run -d -p 7001:80 screenshot-backend)
 
 # Display the logs of the container
 sudo docker logs $container_id
+

@@ -1,10 +1,13 @@
-FROM current-bookworm-slim
+FROM node:22-bullseye-slim
 
 # Set the working directory in the container
 WORKDIR /app
 
 # Copy package.json and yarn.lock
 COPY package.json yarn.lock /app/
+
+# Set the environment variable to skip Puppeteer download
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 # Install dependencies
 RUN yarn install
